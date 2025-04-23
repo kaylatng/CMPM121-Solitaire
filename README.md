@@ -8,12 +8,9 @@ Game Title: _Klondike Solitaire_
 
 ### PROGRAMMING PATTERNS
 
+### REFLECTION
+
+### ASSETS
 Sprites: Modified spritesheet from https://dani-maccari.itch.io/cute-cards-deck \
 Font: \
 Music:
-
-## FEEDBACK
-
-## REFLECTION
-
-## ASSETS
