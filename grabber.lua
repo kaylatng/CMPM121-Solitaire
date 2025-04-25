@@ -1,6 +1,6 @@
+-- Grabber
 
 require "vector"
-local Constants = require ("constants")
 
 GrabberClass = {}
 
@@ -13,93 +13,124 @@ function GrabberClass:new()
   grabber.currentMousePos = nil
   
   grabber.grabPos = nil
-  grabber.grabState = false
   
-  -- NEW: we'll want to keep track of the object (ie. card) we're holding
-  grabber.heldObject = nil
-  grabber.snapback = false
-  grabber.snapbackIndex = nil
+  -- Keep track of the cards we're holding
+  grabber.heldCards = {}
+  grabber.sourcePile = nil
   
   return grabber
 end
 
-function GrabberClass:update()
+function GrabberClass:update(dt)
+  self.previousMousePos = self.currentMousePos
   self.currentMousePos = Vector(
     love.mouse.getX(),
     love.mouse.getY()
   )
   
-  -- Click (just the first frame)
-  if love.mouse.isDown(1) and self.grabPos == nil then
-    self:grab()
-    grabber.grabState = true
+  -- Update positions of held cards
+  for _, card in ipairs(self.heldCards) do
+    card:moveWithMouse(self.currentMousePos)
   end
-  -- Release
-  if not love.mouse.isDown(1) and self.grabPos ~= nil then
-    self:release()
-    grabber.grabState = false
-  end  
 end
 
-function GrabberClass:grab()
+function GrabberClass:tryGrab(card, stack)
+  if #self.heldCards > 0 then 
+    return false 
+  end
+
+  if not card.faceUp then
+    return false
+  end
+  
   self.grabPos = self.currentMousePos
   print("GRAB - " .. tostring(self.grabPos.x) .. ", " .. tostring(self.grabPos.y))
+  -- print("CARD: " .. tostring(card.value))
 
-  self.heldObject = self.grabPos
-  self.heldObject.state = 1
+  local cardsToGrab = {} -- Grab pile
+  if stack.type == "tableau" then
+    local startIndex = nil
+    for i, tableauCard in ipairs(stack.cards) do
+      if tableauCard == card then
+        startIndex = i
+        break
+      end
+    end
+    
+    if startIndex then
+      for i = startIndex, #stack.cards do
+        table.insert(cardsToGrab, stack.cards[i])
+      end
+    end
+  else -- Grab one card
+    table.insert(cardsToGrab, card)
+  end
+  
+  -- Set all cards to grabbed state
+  for i, cardToGrab in ipairs(cardsToGrab) do
+    cardToGrab:setGrabbed(self)
+    table.insert(self.heldCards, cardToGrab)
+  end
+  
+  self.sourcePile = stack
+  
+  -- Remove grabbed cards from source pile
+  for _, cardToRemove in ipairs(cardsToGrab) do
+    stack:removeCard(cardToRemove)
+  end
+  
+  return true
 end
 
-function GrabberClass:release()
-  -- NEW: some more logic stubs here
-  if self.heldObject == nil then -- we have nothing to release
+function GrabberClass:tryRelease(targetPile)  
+  if #self.heldCards == 0 then
+    self.grabPos = nil
+    return false
+  end
+  
+  local success = false
+  
+  if targetPile then
+    success = targetPile:acceptCards(self.heldCards, self.sourcePile)
+  end
+  
+  if success then
+    -- Cards were accepted by the target pile
+    self.heldCards = {}
+    print("RELEASE - " .. tostring(self.currentMousePos.x) .. ", " .. tostring(self.currentMousePos.y))
+  else
+    -- Return cards to the source pile
+    if self.sourcePile then
+      for _, card in ipairs(self.heldCards) do
+        card:release()
+        self.sourcePile:addCard(card)
+      end
+      self.heldCards = {}
+    end
+  end
+  
+  self.grabPos = nil
+  self.sourcePile = nil
+  return success
+end
+
+function GrabberClass:cancelDrag()
+  if #self.heldCards == 0 then
     return
   end
   
-  -- TODO: eventually check if release position is invalid and if it is
-  -- return the heldObject to the grabPosition
-  local isValidReleasePosition = self:containsPoint(self.currentMousePos)
-  if not isValidReleasePosition then
-    self.heldObject.position = self.grabPosition
-  end
-  
-  print("RELEASE - " .. tostring(self.currentMousePos.x) .. ", " .. tostring(self.currentMousePos.y))
-
-  self.heldObject.state = 0 -- it's no longer grabbed
-  
-  self.heldObject = nil
-  self.grabPos = nil
-end
-
-function GrabberClass:containsPoint(mousePos)
-
-  local inBounds = false
-  local pileIndex = nil
-
-  for i = 1, 7 do
-    local x = Constants.PILE_PADDING_X * i + Constants.PILE_SIZE_X * (i-1)
-    local y = 200
-
-    inBounds = mousePos.x > x and
-      mousePos.x < x + Constants.PILE_SIZE_X and
-      mousePos.y > y and
-      mousePos.y < y + Constants.PILE_SIZE_Y
-
-    if inBounds then
-      pileIndex = i
-      self.snapbackIndex = pileIndex
-      print("Pile index: " .. tostring(pileIndex))
-      break 
+  if self.sourcePile then
+    for _, card in ipairs(self.heldCards) do
+      card:release()
+      self.sourcePile:addCard(card)
     end
   end
+  
+  self.heldCards = {}
+  self.grabPos = nil
+  self.sourcePile = nil
+end
 
-  if inBounds then
-    self.snapback = false
-    print("VALID")
-    return true
-  end
-
-  print("INVALID")
-  self.snapback = true
-  print(tostring(self.grabPos.x) .. ", " .. tostring(self.grabPos.y))
-  return false
+function GrabberClass:isHoldingCards()
+  return #self.heldCards > 0
 end

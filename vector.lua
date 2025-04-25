@@ -1,3 +1,6 @@
+-- https://stackoverflow.com/questions/6257148/lua-code-optimization-vector-length-calculation
+
+-- Vector
 
 Vector = {}
 
@@ -10,6 +13,11 @@ metatable = { -- Define Vector meta methods
     setmetatable(vec, metatable)
     return vec
   end,
+  __index = {
+    length = function(self)
+      return math.sqrt(self.x * self.x + self.y * self.y)
+    end
+  },
   __add = function(a, b)
     if type(a) == "number" then return Vector(a + b.x, a + b.y) end
     if type(b) == "number" then return Vector(a.x + b, a.y + b) end
