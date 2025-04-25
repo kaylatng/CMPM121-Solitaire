@@ -19,7 +19,7 @@ The logic to accept cards and invalid cards seems to have an issue accepting the
 
 ### ASSETS
 
-Sprites: Modified/scaled up spritesheet from https://emptysevenone.itch.io/playing-cards. \
-Font: N/A
-Music: N/A
+Sprites: Modified/scaled up spritesheet from https://emptysevenone.itch.io/playing-cards.\
+Font: N/A\
+Music: N/A\
 Misc: Code snippets from CMPM 121 live coding examples used.
